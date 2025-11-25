@@ -14,6 +14,34 @@ services:
       - "5432:5432"
     volumes:
       - ${DB_HOME}/data/postgres:/var/lib/postgresql/data # Persist data outside the container
-      - ${PROJECT_ROOT}/week-03-project/src/main/resources/static/init-db:/docker-entrypoint-initdb.d
-      # - postgres_data:/var/lib/postgresql/data
+      - ${PROJECT_ROOT}/src/main/resources/db/migration/V2__init.sql:/docker-entrypoint-initdb.d/V2__init.sql
     command: postgres -c shared_preload_libraries=vector
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # 모델 자동 설치 (한 번만 실행)
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init
+    depends_on:
+      - ollama
+    command: >
+      bash -c "
+        sleep 10 &&
+        ollama pull qwen2.5:3b --host http://ollama:11434 &&
+        echo 'Setup completed!'
+      "
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
+
+volumes:
+  ollama_data:
+    driver: local
