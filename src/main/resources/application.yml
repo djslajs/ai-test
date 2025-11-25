@@ -11,6 +11,8 @@ spring:
           max-tokens: 4096
     ollama:
       base-url: http://localhost:11434  # OLLAMA 서버 주소
+      embedding:
+        model: nomic-embed-text
       chat:
         options:
           model: qwen2.5:3b              # 사용할 모델
@@ -36,7 +38,7 @@ spring:
         format_sql: true
     show-sql: true
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
 
 points:

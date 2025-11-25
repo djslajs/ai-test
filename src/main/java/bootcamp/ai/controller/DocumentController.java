@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -118,7 +118,7 @@ public class DocumentController {
         try {
             log.info("문서 삭제 요청: {}", documentId);
 
-            documentService.deleteDocument(documentId);
+            documentService.deleteDocument(UUID.fromString(documentId));
 
             return ResponseEntity.ok(new DeleteResponse(
                     documentId,

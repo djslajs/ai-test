@@ -62,30 +62,35 @@ public class DocumentService {
         return documentEntity;
     }
 
-    /**
-     * 문서 분할 (Chunking)
-     */
+    // 문서 분할 로직 수정
     private List<Document> splitDocument(String content, String documentId, String filename) {
-        // TokenTextSplitter: 토큰 기반으로 문서 분할
         TextSplitter splitter = new TokenTextSplitter(
-                500,  // defaultChunkSize: 기본 청크 크기
-                100,            // minChunkSizeChars: 최소 청크 크기 (문자 단위)
-                5,              // minChunkLengthToEmbed: 임베딩할 최소 청크 길이
-                1,              // maxNumChunks: 최대 청크 수 (무제한은 Integer.MAX_VALUE)
-                true            // keepSeparator: 구분자 유지 여부
+                500,
+                100,
+                5,
+                Integer.MAX_VALUE,  // 수정!
+                true
         );
 
-        // 메타데이터 추가
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("document_id", documentId);
         metadata.put("filename", filename);
         metadata.put("source", "user_upload");
 
-        // Document 객체 생성
         Document document = new Document(content, metadata);
+        List<Document> originalChunks = splitter.split(document);
 
-        // 분할 수행
-        return splitter.split(document);
+        // 각 청크에 고유 ID 부여
+        // 코드를 변경하게 된 사유
+        // 기존에는 UUID 값을 Entity에서 자동 생성으로 할당하는 방식을 채택 했으나,
+        // 해당하는 로직이 삭제 되면, 아래와 같이 Chunk 별로 UUID 값을 랜덤하게 생성해서 할당해줘야하는 코드가 추가적으로 필요함.
+        // 그렇지 않으면 충돌 문제가 발생
+        return originalChunks.stream()
+                .map(chunk -> {
+                    Map<String, Object> newMetadata = new HashMap<>(chunk.getMetadata());
+                    return new Document(UUID.randomUUID().toString(), chunk.getText(), newMetadata);
+                })
+                .toList();
     }
 
     /**
@@ -148,9 +153,9 @@ public class DocumentService {
      * 문서 삭제 (Spring AI 1.1.0-M2에서 VectorStore.delete 지원)
      */
     @Transactional
-    public void deleteDocument(String documentId) {
+    public void deleteDocument(UUID documentId) {
         // DB에서 삭제
-        DocumentEntity document = documentRepository.findById(documentId)
+        documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다: " + documentId));
 
         documentRepository.deleteById(documentId);
@@ -159,7 +164,7 @@ public class DocumentService {
         try {
             // document_id 메타데이터를 기준으로 삭제
             // 주의: VectorStore 구현체에 따라 지원 여부가 다를 수 있음
-            List<String> documentIds = vectorSearchRequest(documentId, "", 1000)
+            List<String> documentIds = vectorSearchRequest(documentId.toString(), "", 1000)
                     .stream().map(Document::getId).toList();
 
             if (!documentIds.isEmpty()) {
@@ -188,5 +193,7 @@ public class DocumentService {
                         .build()
         );
     }
+
+
 
 }
